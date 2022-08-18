@@ -81,7 +81,12 @@ func (ah *authorization) refreshAuthorization(dr *DigestRequest) (*authorization
 func (ah *authorization) computeResponse(dr *DigestRequest) (s string) {
 
 	kdSecret := ah.hash(ah.computeA1(dr))
-	kdData := fmt.Sprintf("%s:%08x:%s:%s:%s", ah.Nonce, ah.Nc, ah.Cnonce, ah.Qop, ah.hash(ah.computeA2(dr)))
+	var kdData string
+	if ah.Qop == "" {
+		kdData = fmt.Sprintf("%s:%s", ah.Nonce, ah.hash(ah.computeA2(dr)))
+	} else {
+		kdData = fmt.Sprintf("%s:%08x:%s:%s:%s", ah.Nonce, ah.Nc, ah.Cnonce, ah.Qop, ah.hash(ah.computeA2(dr)))
+	}
 
 	return ah.hash(fmt.Sprintf("%s:%s", kdSecret, kdData))
 }
@@ -110,7 +115,7 @@ func (ah *authorization) computeA2(dr *DigestRequest) string {
 	}
 
 	if dr.Wa.Qop == "auth" || dr.Wa.Qop == "" {
-		ah.Qop = "auth"
+		ah.Qop = dr.Wa.Qop
 		return fmt.Sprintf("%s:%s", dr.Method, ah.URI)
 	}
 
@@ -163,20 +168,21 @@ func (ah *authorization) toString() string {
 		buffer.WriteString(fmt.Sprintf("algorithm=%s, ", ah.Algorithm))
 	}
 
-	if ah.Cnonce != "" {
-		buffer.WriteString(fmt.Sprintf("cnonce=\"%s\", ", ah.Cnonce))
-	}
-
 	if ah.Opaque != "" {
 		buffer.WriteString(fmt.Sprintf("opaque=\"%s\", ", ah.Opaque))
 	}
 
 	if ah.Qop != "" {
 		buffer.WriteString(fmt.Sprintf("qop=%s, ", ah.Qop))
-	}
 
-	if ah.Nc != 0 {
-		buffer.WriteString(fmt.Sprintf("nc=%08x, ", ah.Nc))
+		if ah.Cnonce != "" {
+			buffer.WriteString(fmt.Sprintf("cnonce=\"%s\", ", ah.Cnonce))
+		}
+
+		if ah.Nc != 0 {
+			buffer.WriteString(fmt.Sprintf("nc=%08x, ", ah.Nc))
+		}
+
 	}
 
 	if ah.Userhash {
